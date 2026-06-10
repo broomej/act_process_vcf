@@ -2,11 +2,16 @@ module serpent:
     #snakefile: github("broomej/serpent", path="workflow/Snakefile", tag=config.get("serpent_version"))
     snakefile: github("broomej/serpent", path="workflow/Snakefile", commit="1fbad34925a23e2efeb8123dad1af20c28b00f35")
 
+ROOTDIR = config["rootdir"]
+RESDIR = f"{ROOTDIR}/results"
+LOGDIR = f"{ROOTDIR}/logs"
+TEMPDIR = f"{ROOTDIR}/temp"
+
 use rule create_variant_exclude_delim from serpent as serpent_create_variant_exclude_delim with:
     container: VCFTOOLS_IMG
     input: f"{ACT_DATA_DIR}/{{cohort}}/TOPMEDr2/infofile/chr{{chromosome}}.info.gz"
-    output: temp("temp/{cohort}/var_excl_lists/chr{chromosome}_excl.txt")
-    log: "logs/create_variant_exclude_delim/{cohort}/chr{chromosome}.log"
+    output: temp(f"{TEMPDIR}/{{cohort}}/var_excl_lists/chr{{chromosome}}_excl.txt")
+    log: f"{LOGDIR}/create_variant_exclude_delim/{{cohort}}/chr{{chromosome}}.log"
     params:
         avg_call=config["avg_call"],
         rsq_common=config["rsq_common"],
@@ -14,7 +19,7 @@ use rule create_variant_exclude_delim from serpent as serpent_create_variant_exc
         rsq_rare=config["rsq_rare"],
 
 F_VCF_IN_PFX = f"{ACT_DATA_DIR}/{{cohort}}/TOPMEDr2/vcffile/chr{{chromosome}}.dose.vcf.gz"
-F_VCF_OUT_PFX = "temp/{cohort}/filtered_vcfs/chr{chromosome}_filtered.vcf.gz"
+F_VCF_OUT_PFX = f"{TEMPDIR}/{{cohort}}/filtered_vcfs/chr{{chromosome}}_filtered.vcf.gz"
 use rule filter_vcf from serpent as serpent_filter_vcf with:
     container: BCFTOOLS_IMG
     input:
@@ -24,9 +29,9 @@ use rule filter_vcf from serpent as serpent_filter_vcf with:
     output:
         vcf=temp(F_VCF_OUT_PFX),
         tbi=temp(F_VCF_OUT_PFX + ".tbi"),
-    log: "logs/filter_vcf/{cohort}/chr{chromosome}.log"
+    log: f"{LOGDIR}/filter_vcf/{{cohort}}/chr{{chromosome}}.log"
 
-M_VCF_OUT_PFX = "results/vcf/chr{chromosome}_filtered.vcf.gz"
+M_VCF_OUT_PFX = f"{RESDIR}/vcf/chr{{chromosome}}_filtered.vcf.gz"
 use rule merge_vcf from serpent as serpent_merge_vcf with:
     container: BCFTOOLS_IMG
     input:
@@ -35,13 +40,13 @@ use rule merge_vcf from serpent as serpent_merge_vcf with:
     output:
         vcf=M_VCF_OUT_PFX,
         tbi=M_VCF_OUT_PFX + ".tbi",
-    log: "logs/merge_vcf/chr{chromosome}.log"
+    log: f"{LOGDIR}/merge_vcf/chr{{chromosome}}.log"
 
 rule get_ids:
     container: BCFTOOLS_IMG
     input: M_VCF_OUT_PFX
-    output: temp("results/typed_ids/{chromosome}_typed_ids.txt"),
-    log: "logs/get_ids/{chromosome}.log"
+    output: temp(f"{TEMPDIR}/typed_ids/{{chromosome}}_typed_ids.txt"),
+    log: f"{LOGDIR}/get_ids/{{chromosome}}.log"
     shell:
         """
         bcftools query -l {input} > {output} 2> {log}
@@ -49,8 +54,8 @@ rule get_ids:
 
 rule combine_ids:
     input: expand(rules.get_ids.output, cohort=COHORTS, chromosome=CHROMOSOMES)
-    output: "results/typed_ids.txt"
-    log: "logs/combine_ids.log"
+    output: f"{RESDIR}/typed_ids.txt"
+    log: f"{LOGDIR}/combine_ids.log"
     shell:
         """
         cat {input} > {output} 2> {log}
@@ -63,13 +68,13 @@ rule get_bps_samples:
         xwalk=f"{ACT_DATA_DIR}/ACT_ID_xwalk.csv",
         typed_ids=rules.combine_ids.output,
     output:
-        txt="results/np_ids.txt",
-        rds="results/np_ids.rds",
-        ids_matched="results/ids_matched.csv",
-    log: "logs/get_bps_samples.log"
+        txt=f"{RESDIR}/np_ids.txt",
+        rds=f"{RESDIR}/np_ids.rds",
+        ids_matched=f"{RESDIR}/ids_matched.csv",
+    log: f"{LOGDIR}/get_bps_samples.log"
     script: "scripts/extract_ids.R"
 
-CONVERT_PLINK_OUT_PFX = "temp/plink/np_imputed_chr{chromosome}"
+CONVERT_PLINK_OUT_PFX = f"{TEMPDIR}/plink/np_imputed_chr{{chromosome}}"
 rule vcf_to_plink:
     container: PLINK_IMG
     input:
@@ -82,7 +87,7 @@ rule vcf_to_plink:
         fam=temp(CONVERT_PLINK_OUT_PFX + ".fam"),
     params:
         out_pfx=CONVERT_PLINK_OUT_PFX,
-    log: "logs/vcf_to_plink/{chromosome}.log"
+    log: f"{LOGDIR}/vcf_to_plink/{{chromosome}}.log"
     shell:
         """
         plink --vcf {input.vcf} \
@@ -98,15 +103,15 @@ rule merge_list:
         bim=expand(rules.vcf_to_plink.output.bim, chromosome=CHROMOSOMES),
         fam=expand(rules.vcf_to_plink.output.fam, chromosome=CHROMOSOMES),
     output:
-        merge_list=temp("temp/merge_list.txt"),
+        merge_list=temp(f"{TEMPDIR}/merge_list.txt"),
     log:
-        "logs/merge_list.log"
+        f"{LOGDIR}/merge_list.log"
     shell:
         """
         echo '{input.bed} ' | sed 's/\\.bed /\\n/g' > {output.merge_list} 2> {log}
         """
 
-PLINK_MERGE_PFX = "results/act_np_imputed"
+PLINK_MERGE_PFX = f"{RESDIR}/act_np_imputed"
 rule plink_merge:
     container: PLINK_IMG
     input:
@@ -119,7 +124,7 @@ rule plink_merge:
         bim=PLINK_MERGE_PFX + ".bim",
         fam=PLINK_MERGE_PFX + ".fam",
     log:
-        "logs/plink_merge.log"
+        f"{LOGDIR}/plink_merge.log"
     params:
         out_pfx=PLINK_MERGE_PFX,
     shell:
