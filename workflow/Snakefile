@@ -2,10 +2,12 @@ module serpent:
     #snakefile: github("broomej/serpent", path="workflow/Snakefile", tag=config.get("serpent_version"))
     snakefile: github("broomej/serpent", path="workflow/Snakefile", commit="1fbad34925a23e2efeb8123dad1af20c28b00f35")
 
-ROOTDIR = config["project_root"]["act"]["data_prep"]
-RESDIR = f"{ROOTDIR}/results"
-LOGDIR = f"{ROOTDIR}/logs"
-TEMPDIR = f"{ROOTDIR}/temp"
+ROOTDIR = config["project_root"]["act"]
+PROJNAME = config["act_dir"]["data_prep"]
+PROJDIR = f"{ROOTDIR}/{PROJNAME}"
+RESDIR = f"{PROJDIR}/results"
+LOGDIR = f"{PROJDIR}/logs"
+TEMPDIR = f"{PROJDIR}/temp"
 
 CREATE_EXCL_OUT=f"{TEMPDIR}/{{cohort}}/var_excl_lists/chr{{chromosome}}_excl.txt"
 use rule create_variant_exclude_delim from serpent as serpent_create_variant_exclude_delim with:
