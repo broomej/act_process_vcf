@@ -1,26 +1,26 @@
 module serpent:
     snakefile: "/home/jb/development/serpent/workflow/Snakefile"
-    
-# rule all:
-#     input: 
-#         vcf=expand(M_VCF_OUT_PFX, chromosome=config["CHROMOSOMES"]),
-#         tbi=expand(M_VCF_OUT_PFX + ".tbi", chromosome=config["CHROMOSOMES"]),
+
+M_VCF_OUT_PFX="results/vcf/chr{chromosome}_filtered.vcf.gz"
+rule all:
+    input:
+        vcf=expand(M_VCF_OUT_PFX, chromosome=config["CHROMOSOMES"]),
+        tbi=expand(f"{M_VCF_OUT_PFX}.tbi", chromosome=config["CHROMOSOMES"]),
 
 CREATE_EXCL_OUT="temp/{cohort}/var_excl_lists/chr{chromosome}_excl.txt"
 use rule create_variant_exclude_delim from serpent as serpent_create_variant_exclude_delim with:
     container: config["images"]["vcftools"]
-    input: f'{config["data"]["act"]}/{{cohort}}/TOPMEDr2/infofile/chr{{chromosome}}.info.gz'
+    input: "/container/act/{cohort}/TOPMEDr2/infofile/chr{chromosome}.info.gz"
     output: temp(CREATE_EXCL_OUT)
     log: "logs/create_variant_exclude_delim/{cohort}/chr{chromosome}.log"
     params:
-        avg_call=config["avg_call"],
-        rsq_common=config["rsq_common"],
-        maf_thresh=config["maf_thresh"],
-        rsq_rare=config["rsq_rare"]
+        avg_call=config["params"]["vcf"]["avg_call"],
+        rsq_common=config["params"]["vcf"]["rsq_common"],
+        maf_thresh=config["params"]["vcf"]["maf_thresh"],
+        rsq_rare=config["params"]["vcf"]["rsq_rare"]
 
-F_VCF_IN_PFX = f'{config["data"]["act"]}/{{cohort}}/TOPMEDr2/vcffile/chr{{chromosome}}.dose.vcf.gz'
+F_VCF_IN_PFX = "/container/act/{cohort}/TOPMEDr2/vcffile/chr{chromosome}.dose.vcf.gz"
 F_VCF_OUT_PFX = "temp/{cohort}/filtered_vcfs/chr{chromosome}_filtered.vcf.gz"
-
 use rule filter_vcf from serpent as serpent_filter_vcf with:
     container: config["images"]["bcftools"]
     input:
@@ -32,12 +32,11 @@ use rule filter_vcf from serpent as serpent_filter_vcf with:
         tbi=temp(F_VCF_OUT_PFX + ".tbi"),
     log: "logs/filter_vcf/{cohort}/chr{chromosome}.log"
 
-M_VCF_OUT_PFX="results/vcf/chr{chromosome}_filtered.vcf.gz"
 use rule merge_vcf from serpent as serpent_merge_vcf with:
     container: config["images"]["bcftools"]
     input:
-        vcf=expand(F_VCF_OUT_PFX, cohort=config["COHORTS"], allow_missing=True),
-        tbi=expand(F_VCF_OUT_PFX + ".tbi", cohort=config["COHORTS"], allow_missing=True),
+        vcf=expand(F_VCF_OUT_PFX, cohort=config["bfiles"].keys(), allow_missing=True),
+        tbi=expand(F_VCF_OUT_PFX + ".tbi", cohort=config["bfiles"].keys(), allow_missing=True),
     output:
         vcf=M_VCF_OUT_PFX,
         tbi=M_VCF_OUT_PFX + ".tbi",
