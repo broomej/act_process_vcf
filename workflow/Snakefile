@@ -1,18 +1,19 @@
 module serpent:
     snakefile: "/home/jb/development/serpent/workflow/Snakefile"
 
-M_VCF_OUT_PFX="results/vcf/chr{chromosome}_filtered.vcf.gz"
+OUTDIR = config["outdir"]["act"]["process_vcf"]
+M_VCF_OUT_PFX = f"{OUTDIR}/results/vcf/chr{{chromosome}}_filtered.vcf.gz"
 rule all:
     input:
         vcf=expand(M_VCF_OUT_PFX, chromosome=config["CHROMOSOMES"]),
         tbi=expand(f"{M_VCF_OUT_PFX}.tbi", chromosome=config["CHROMOSOMES"]),
 
-CREATE_EXCL_OUT="temp/{cohort}/var_excl_lists/chr{chromosome}_excl.txt"
+CREATE_EXCL_OUT = f"{OUTDIR}/temp/{{cohort}}/var_excl_lists/chr{{chromosome}}_excl.txt"
 use rule create_variant_exclude_delim from serpent as serpent_create_variant_exclude_delim with:
     container: config["images"]["vcftools"]
     input: "/container/act/{cohort}/TOPMEDr2/infofile/chr{chromosome}.info.gz"
     output: temp(CREATE_EXCL_OUT)
-    log: "logs/create_variant_exclude_delim/{cohort}/chr{chromosome}.log"
+    log: f"{OUTDIR}/logs/create_variant_exclude_delim/{{cohort}}/chr{{chromosome}}.log"
     params:
         avg_call=config["params"]["vcf"]["avg_call"],
         rsq_common=config["params"]["vcf"]["rsq_common"],
@@ -20,7 +21,7 @@ use rule create_variant_exclude_delim from serpent as serpent_create_variant_exc
         rsq_rare=config["params"]["vcf"]["rsq_rare"]
 
 F_VCF_IN_PFX = "/container/act/{cohort}/TOPMEDr2/vcffile/chr{chromosome}.dose.vcf.gz"
-F_VCF_OUT_PFX = "temp/{cohort}/filtered_vcfs/chr{chromosome}_filtered.vcf.gz"
+F_VCF_OUT_PFX = f"{OUTDIR}/temp/{{cohort}}/filtered_vcfs/chr{{chromosome}}_filtered.vcf.gz"
 use rule filter_vcf from serpent as serpent_filter_vcf with:
     container: config["images"]["bcftools"]
     input:
@@ -30,7 +31,7 @@ use rule filter_vcf from serpent as serpent_filter_vcf with:
     output:
         vcf=temp(F_VCF_OUT_PFX),
         tbi=temp(F_VCF_OUT_PFX + ".tbi"),
-    log: "logs/filter_vcf/{cohort}/chr{chromosome}.log"
+    log: f"{OUTDIR}/logs/filter_vcf/{{cohort}}/chr{{chromosome}}.log"
 
 use rule merge_vcf from serpent as serpent_merge_vcf with:
     container: config["images"]["bcftools"]
@@ -40,4 +41,4 @@ use rule merge_vcf from serpent as serpent_merge_vcf with:
     output:
         vcf=M_VCF_OUT_PFX,
         tbi=M_VCF_OUT_PFX + ".tbi",
-    log: "logs/merge_vcf/chr{chromosome}.log"
+    log: f"{OUTDIR}/logs/merge_vcf/chr{{chromosome}}.log"
