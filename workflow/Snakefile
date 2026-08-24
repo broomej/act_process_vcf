@@ -15,10 +15,10 @@ use rule create_variant_exclude_delim from serpent as serpent_create_variant_exc
     output: temp(CREATE_EXCL_OUT)
     log: f"{OUTDIR}/logs/create_variant_exclude_delim/{{cohort}}/chr{{chromosome}}.log"
     params:
-        avg_call=config["params"]["vcf"]["avg_call"],
-        rsq_common=config["params"]["vcf"]["rsq_common"],
-        maf_thresh=config["params"]["vcf"]["maf_thresh"],
-        rsq_rare=config["params"]["vcf"]["rsq_rare"]
+        avg_call=config["vcf"]["avg_call"],
+        rsq_common=config["vcf"]["rsq_common"],
+        maf_thresh=config["vcf"]["maf_thresh"],
+        rsq_rare=config["vcf"]["rsq_rare"]
 
 F_VCF_IN_PFX = "/container/act/{cohort}/TOPMEDr2/vcffile/chr{chromosome}.dose.vcf.gz"
 F_VCF_OUT_PFX = f"{OUTDIR}/temp/{{cohort}}/filtered_vcfs/chr{{chromosome}}_filtered.vcf.gz"
