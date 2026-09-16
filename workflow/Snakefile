@@ -1,7 +1,7 @@
 module serpent:
     snakefile: "/home/jb/development/serpent/workflow/Snakefile"
 
-OUTDIR = config["outdir"]["act"]["process_vcf"]
+OUTDIR = config["act"]["outdir"]["process_vcf"]
 M_VCF_OUT_PFX = f"{OUTDIR}/results/vcf/chr{{chromosome}}_filtered.vcf.gz"
 rule all:
     input:
